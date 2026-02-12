@@ -1,5 +1,20 @@
+import { neonConfig } from '@neondatabase/serverless';
 import { sql } from '@vercel/postgres';
 import { PolymarketProbs, OracleResult, HistoryPoint } from './types';
+
+// Configure proxy-aware fetch for environments behind an HTTP proxy (e.g. local dev containers)
+const proxyUrl = process.env.HTTP_PROXY || process.env.http_proxy;
+if (proxyUrl) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { ProxyAgent } = require('undici');
+    const agent = new ProxyAgent(proxyUrl);
+    neonConfig.fetchFunction = (url: any, init: any) =>
+      fetch(url, { ...init, dispatcher: agent } as any);
+  } catch {
+    // undici not available — proxy fetch not configured
+  }
+}
 
 export async function createTables() {
   await sql`
