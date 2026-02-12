@@ -15,9 +15,10 @@ import { HistoryPoint } from '@/lib/types';
 
 interface OracleChartProps {
   history: HistoryPoint[];
+  tipsBreakeven?: number | null;
 }
 
-export default function OracleChart({ history }: OracleChartProps) {
+export default function OracleChart({ history, tipsBreakeven }: OracleChartProps) {
   if (history.length === 0) {
     return (
       <div className="border border-gray-800 rounded p-4 mb-4 bg-gray-900/50 h-72 flex items-center justify-center">
@@ -33,6 +34,7 @@ export default function OracleChart({ history }: OracleChartProps) {
     cut25: h.prob_cut_25 !== null ? h.prob_cut_25 * 100 : null,
     cut50: h.prob_cut_50 !== null ? h.prob_cut_50 * 100 : null,
     hike25: h.prob_hike_25 !== null ? h.prob_hike_25 * 100 : null,
+    tips: tipsBreakeven ?? null,
   }));
 
   const formatDate = (ts: number | string) => {
@@ -54,7 +56,7 @@ export default function OracleChart({ history }: OracleChartProps) {
 
   return (
     <div className="border border-gray-800 rounded p-4 mb-4 bg-gray-900/50">
-      <div className="text-xs text-gray-500 font-mono mb-2">ORACLE CHART — HISTORICAL</div>
+      <div className="text-xs text-gray-500 font-mono mb-2">ORACLE CHART — V2 PRIMARY (purple) · V1 HISTORICAL (gray)</div>
       <ResponsiveContainer width="100%" height={320}>
         <ComposedChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#1a1a2e" />
@@ -97,7 +99,7 @@ export default function OracleChart({ history }: OracleChartProps) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             formatter={((value: any, name?: string) => {
               const v = Number(value);
-              if (name === 'oracle') return [`${v.toFixed(4)}%`, 'Oracle'];
+              if (name === 'V2 Oracle' || name === 'TIPS BE') return [`${v.toFixed(4)}%`, name];
               return [`${v.toFixed(1)}%`, name || ''];
             }) as never}
           />
@@ -125,12 +127,24 @@ export default function OracleChart({ history }: OracleChartProps) {
           <Line
             yAxisId="oracle"
             dataKey="oracle"
-            name="oracle"
+            name="V2 Oracle"
             stroke="#c084fc"
             strokeWidth={2}
             dot={false}
             connectNulls
           />
+          {tipsBreakeven !== null && (
+            <Line
+              yAxisId="oracle"
+              dataKey="tips"
+              name="TIPS BE"
+              stroke="#60a5fa"
+              strokeWidth={1}
+              strokeDasharray="4 2"
+              dot={false}
+              connectNulls
+            />
+          )}
         </ComposedChart>
       </ResponsiveContainer>
     </div>

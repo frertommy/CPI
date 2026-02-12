@@ -3,9 +3,12 @@
 import { useOraclePolling } from '@/hooks/useOraclePolling';
 import OracleHeader from '@/components/OracleHeader';
 import FormulaDisplay from '@/components/FormulaDisplay';
+import DataSourceCards from '@/components/DataSourceCards';
+import KalshiBrackets from '@/components/KalshiBrackets';
 import ProbabilityCards from '@/components/ProbabilityCards';
 import OracleChart from '@/components/OracleChart';
 import LiveFeedTable from '@/components/LiveFeedTable';
+import MarketContext from '@/components/MarketContext';
 import StatusBar from '@/components/StatusBar';
 
 export default function Home() {
@@ -41,6 +44,8 @@ export default function Home() {
     ? parseFloat(String(state.current.prob_hike_25))
     : null;
 
+  const tipsBreakeven = state.v2?.tips_breakeven ?? state.fredData?.T5YIE?.value ?? null;
+
   return (
     <div className="min-h-screen bg-[#0a0a0f] p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
@@ -51,13 +56,25 @@ export default function Home() {
           status={state.status}
           lastTick={state.lastTick}
           tickCount={state.tickCount}
+          v2={state.v2}
         />
 
         <FormulaDisplay
           oracleValue={oracleValue}
           cpiYoy={cpiYoy}
           impliedInflation={impliedInflation}
+          v2={state.v2}
         />
+
+        <DataSourceCards
+          v2={state.v2}
+          cpiPrintDate={state.cpi?.print_date || null}
+          kalshiBrackets={state.kalshiBrackets}
+          fredData={state.fredData}
+          probNoChange={probNoChange}
+        />
+
+        <KalshiBrackets brackets={state.kalshiBrackets} />
 
         <ProbabilityCards
           probNoChange={probNoChange}
@@ -66,9 +83,14 @@ export default function Home() {
           probHike25={probHike25}
         />
 
-        <OracleChart history={state.history} />
+        <OracleChart
+          history={state.history}
+          tipsBreakeven={tipsBreakeven}
+        />
 
         <LiveFeedTable feed={state.feed} status={state.status} />
+
+        <MarketContext fredData={state.fredData} />
 
         <StatusBar
           tickCount={state.tickCount}
