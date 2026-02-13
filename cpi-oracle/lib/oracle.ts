@@ -101,8 +101,11 @@ export function computeOracleV2(inputs: V2Inputs): OracleV2Result {
   let wTips = W_TIPS;
   const wPolymarket = W_POLYMARKET;
 
-  const kalshiAvailable = kalshiImpliedCpi !== null;
-  const tipsAvailable = tipsBreakeven !== null;
+  // Validate source values — treat zero, null, or out-of-range as unavailable
+  const kalshiAvailable = kalshiImpliedCpi !== null &&
+    kalshiImpliedCpi > 1.0 && kalshiImpliedCpi < 5.0;
+  const tipsAvailable = tipsBreakeven !== null &&
+    tipsBreakeven > 0.5 && tipsBreakeven < 5.0;
 
   if (!kalshiAvailable && !tipsAvailable) {
     wCpi = W_CPI + W_KALSHI + W_TIPS;
