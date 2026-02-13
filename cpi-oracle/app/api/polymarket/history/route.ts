@@ -3,6 +3,7 @@ import { getHistoryCount, bulkInsertHistory, getHistory, getLiveOracleAfter } fr
 import { fetchMarketMeta, fetchPriceHistory } from '@/lib/polymarket';
 import { computeOracleFromProbs } from '@/lib/oracle';
 import { HistoryPoint } from '@/lib/types';
+import { sql } from '@vercel/postgres';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +29,6 @@ export async function GET() {
         const allTimestamps = new Set<number>();
         for (const bps of Object.keys(histories)) {
           for (const point of histories[Number(bps)]) {
-            // Round to nearest hour
             const hourBucket = Math.round(point.t / 3600) * 3600;
             allTimestamps.add(hourBucket);
           }
@@ -49,7 +49,6 @@ export async function GET() {
         const sortedTs = Array.from(allTimestamps).sort((a, b) => a - b);
         const points: HistoryPoint[] = [];
 
-        // Track last known values for interpolation
         let lastNoChange = 0.5;
         let lastCut25 = 0.2;
         let lastCut50 = 0.1;
@@ -79,32 +78,47 @@ export async function GET() {
           });
         }
 
-        // Bulk insert
-        await bulkInsertHistory(points);
+        if (points.length > 0) {
+          await bulkInsertHistory(points);
+        }
       } catch (backfillError) {
         console.error('Backfill error:', backfillError);
-        // Continue — return whatever we have
       }
     }
 
-    // Get all history
+    // Get all backfill history
     const history = await getHistory();
 
-    // Also get any live oracle values newer than the last history point
-    let livePoints: HistoryPoint[] = [];
-    if (history.length > 0) {
-      const lastTs = history[history.length - 1].timestamp;
-      const liveRows = await getLiveOracleAfter(lastTs);
-      livePoints = liveRows.map((r) => ({
-        timestamp: r.timestamp,
-        prob_no_change: r.prob_no_change ? parseFloat(r.prob_no_change) : null,
-        prob_cut_25: r.prob_cut_25 ? parseFloat(r.prob_cut_25) : null,
-        prob_cut_50: r.prob_cut_50 ? parseFloat(r.prob_cut_50) : null,
-        prob_hike_25: r.prob_hike_25 ? parseFloat(r.prob_hike_25) : null,
-        oracle_value: r.oracle_value ? parseFloat(r.oracle_value) : null,
-        source: 'live',
-      }));
-    }
+    // Always get live oracle values — either after backfill or from epoch
+    const afterTs = history.length > 0
+      ? history[history.length - 1].timestamp
+      : '1970-01-01T00:00:00Z';
+
+    const liveRows = await getLiveOracleAfter(afterTs);
+    const livePoints: HistoryPoint[] = liveRows.map((r) => ({
+      timestamp: r.timestamp,
+      prob_no_change: r.prob_no_change ? parseFloat(r.prob_no_change) : null,
+      prob_cut_25: r.prob_cut_25 ? parseFloat(r.prob_cut_25) : null,
+      prob_cut_50: r.prob_cut_50 ? parseFloat(r.prob_cut_50) : null,
+      prob_hike_25: r.prob_hike_25 ? parseFloat(r.prob_hike_25) : null,
+      oracle_value: r.oracle_value ? parseFloat(r.oracle_value) : null,
+      source: 'live',
+    }));
+
+    // Also get V2 oracle history for the chart
+    const v2Rows = await sql`
+      SELECT computed_at, oracle_v2, oracle_v1, kalshi_implied_cpi, tips_breakeven, polymarket_impl_infl
+      FROM oracle_values_v2
+      ORDER BY computed_at ASC`;
+
+    const v2History = v2Rows.rows.map((r) => ({
+      timestamp: r.computed_at,
+      oracle_v2: parseFloat(r.oracle_v2),
+      oracle_v1: parseFloat(r.oracle_v1),
+      kalshi_implied_cpi: r.kalshi_implied_cpi ? parseFloat(r.kalshi_implied_cpi) : null,
+      tips_breakeven: r.tips_breakeven ? parseFloat(r.tips_breakeven) : null,
+      polymarket_impl_infl: parseFloat(r.polymarket_impl_infl),
+    }));
 
     const merged = [
       ...history.map((h) => ({
@@ -119,9 +133,9 @@ export async function GET() {
       ...livePoints,
     ];
 
-    return NextResponse.json({ history: merged });
+    return NextResponse.json({ history: merged, v2History });
   } catch (error) {
     console.error('History route error:', error);
-    return NextResponse.json({ history: [], error: String(error) }, { status: 500 });
+    return NextResponse.json({ history: [], v2History: [], error: String(error) }, { status: 500 });
   }
 }

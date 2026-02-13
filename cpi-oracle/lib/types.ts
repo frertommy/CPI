@@ -93,10 +93,20 @@ export interface CpiResponse {
   print_date: string;
 }
 
+export interface V2HistoryPoint {
+  timestamp: string;
+  oracle_v2: number;
+  oracle_v1: number;
+  kalshi_implied_cpi: number | null;
+  tips_breakeven: number | null;
+  polymarket_impl_infl: number;
+}
+
 export interface DashboardState {
   current: OracleRow | null;
   feed: OracleRow[];
   history: HistoryPoint[];
+  v2History: V2HistoryPoint[];
   cpi: CpiResponse | null;
   status: 'loading' | 'live' | 'error' | 'stale';
   error: string | null;

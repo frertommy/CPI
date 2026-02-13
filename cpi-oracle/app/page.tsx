@@ -44,8 +44,6 @@ export default function Home() {
     ? parseFloat(String(state.current.prob_hike_25))
     : null;
 
-  const tipsBreakeven = state.v2?.tips_breakeven ?? state.fredData?.T5YIE?.value ?? null;
-
   return (
     <div className="min-h-screen bg-[#0a0a0f] p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
@@ -85,7 +83,7 @@ export default function Home() {
 
         <OracleChart
           history={state.history}
-          tipsBreakeven={tipsBreakeven}
+          v2History={state.v2History}
         />
 
         <LiveFeedTable feed={state.feed} status={state.status} />
