@@ -40,6 +40,45 @@ export async function fetchFredSeries(seriesId: string): Promise<FredObservation
   return observations;
 }
 
+export async function fetchFredSeriesRange(seriesId: string, startDate: string): Promise<FredObservation[]> {
+  const apiKey = process.env.FRED_API_KEY;
+  if (!apiKey) return [];
+
+  const url = `${FRED_API}?series_id=${seriesId}&api_key=${apiKey}&file_type=json&observation_start=${startDate}&sort_order=asc`;
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    throw new Error(`FRED API error for ${seriesId}: ${res.status} ${res.statusText}`);
+  }
+
+  const data = await res.json();
+  const observations: FredObservation[] = [];
+
+  for (const obs of data.observations || []) {
+    if (obs.value === '.' || obs.value === undefined) continue;
+    const value = parseFloat(obs.value);
+    if (isNaN(value)) continue;
+    observations.push({ series_id: seriesId, obs_date: obs.date, value });
+  }
+
+  return observations;
+}
+
+export async function fetchAllFredSeriesRange(startDate: string): Promise<FredObservation[]> {
+  const apiKey = process.env.FRED_API_KEY;
+  if (!apiKey) return [];
+
+  const results = await Promise.allSettled(
+    ALL_SERIES.map((s) => fetchFredSeriesRange(s, startDate))
+  );
+
+  const allObs: FredObservation[] = [];
+  for (const r of results) {
+    if (r.status === 'fulfilled') allObs.push(...r.value);
+  }
+  return allObs;
+}
+
 export async function fetchAllFredSeries(): Promise<FredObservation[]> {
   const apiKey = process.env.FRED_API_KEY;
   if (!apiKey) {

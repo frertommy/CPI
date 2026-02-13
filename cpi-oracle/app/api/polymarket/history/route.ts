@@ -20,7 +20,7 @@ export async function GET() {
         const histories: Record<number, { t: number; p: number }[]> = {};
         await Promise.all(
           markets.map(async (m) => {
-            const h = await fetchPriceHistory(m.conditionId);
+            const h = await fetchPriceHistory(m.yesTokenId);
             histories[m.bps] = h;
           })
         );
